@@ -9,7 +9,7 @@
 ;; Version: 0.0.1
 ;; Keywords:
 ;; Homepage: https://github.com/ketan0/org-twitter
-;; Package-Requires: ((emacs 26.1) (org-ml "4.0") (cl-lib "0.5"))
+;; Package-Requires: ((emacs 26.1) (org-ml "4.0") (cl-lib "0.5") (aio "1.0"))
 ;;
 ;; This file is not part of GNU Emacs.
 ;;
@@ -20,6 +20,7 @@
 ;;; Code:
 (require 'twittering-mode)
 (require 'org-ml)
+(require 'aio)
 
 (defgroup org-twitter nil
   "Play twitter songs through org mode interfaces."
@@ -41,13 +42,9 @@
   (let* ((saved-buffer (current-buffer))
          (headline (org-ml-parse-this-headline))
          (status (org-ml-get-property :raw-value headline)))
-    (org-twitter-tweet status) ;; TODO: await this, and append status id to the headline
-    ))
+    (org-twitter-tweet status)))
 
 (aio-defun org-twitter-tweet-thread (tweets)
-  ;; TODO: collect the status-id's and return them.
-  ;; then in the tweet-headlines function, you can just map the status id's onto the
-  ;; headlines with org-ml-update-headline-at {....
   (let ((in-reply-to-status-id))
     (while tweets
       (let ((response (aio-await (org-twitter-tweet (car tweets) in-reply-to-status-id))))
@@ -72,7 +69,6 @@
        (("200")
         (let ((json-response (twittering-json-read)))
           (aio-resolve promise (lambda () json-response))))
-       ;; (message "the tweet id is: %s" (alist-get 'id json-response))))
        (t
         (aio-resolve promise (lambda () (format "Response: %s"
                                                 (twittering-get-error-message header-info connection-info)))))))))
