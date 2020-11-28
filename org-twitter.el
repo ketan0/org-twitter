@@ -5,7 +5,7 @@
 ;; Author: Ketan Agrawal <http://github.com/ketan0>
 ;; Maintainer: Ketan Agrawal <ketanjayagrawal@gmail.com>
 ;; Created: October 13, 2020
-;; Modified: November 21, 2020
+;; Modified: November 28, 2020
 ;; Version: 0.0.1
 ;; Keywords:
 ;; Homepage: https://github.com/ketan0/org-twitter
@@ -88,7 +88,6 @@
 ;; don't need aio-defun since I'm manually creating/returning the promise
 (defun org-twitter-call-api (command args-alist)
   (let ((promise (aio-promise)))
-    ;; TODO: authentication check
     (if (twittering-ensure-preparation-for-api-invocation)
         (twittering-call-api command
                              (append args-alist
