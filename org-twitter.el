@@ -23,54 +23,89 @@
 (require 'aio)
 
 (defgroup org-twitter nil
-  "Play twitter songs through org mode interfaces."
+  "Convert org-mode notes to tweets and threads."
   :group 'org
   :prefix "org-twitter-"
   :link '(url-link :tag "Github" "https://github.com/ketan0/org-twitter"))
 
-(aio-defun org-twitter-tweet-selection ()
+(defcustom org-twitter-tweet-link-description "🐦"
+  "Link description that is appended following tweeted text."
+  :group 'org-twitter
+  :type 'string)
+
+(aio-defun org-twitter-tweet-selection (beg end)
   "Interactively tweet the currently selected text."
-  (interactive)
-  (let ((status (buffer-substring-no-properties
-                 (region-beginning)
-                 (region-end))))
-    (org-twitter-tweet status)))
+  (interactive "r")
+  (let* ((saved-buffer (current-buffer))
+         (status (buffer-substring-no-properties beg end))
+         (status-id (alist-get 'id_str (aio-wait-for (org-twitter-tweet status)))))
+    (message "status: %s" status)
+    (org-twitter-add-tweet-link-to-selection saved-buffer beg end status status-id)))
+
+(defun org-twitter-add-tweet-link-to-selection (saved-buffer beg end status status-id)
+  (with-current-buffer saved-buffer
+    (delete-region beg end)
+    (insert (format "%s (%s)" status (org-twitter-link-to-tweet status-id)))))
 
 (aio-defun org-twitter-tweet-this-headline (saved-point)
-  "Interactively tweet the currently selected text."
+  "Interactively tweet the headline under point."
   (interactive "d")
   (let* ((saved-buffer (current-buffer))
-         (headline (org-ml-parse-this-headline))
-         (status (org-ml-get-property :raw-value headline)))
-    (org-twitter-tweet status)))
+         (status (org-ml-get-property :raw-value (org-ml-parse-this-headline)))
+         (status-id (alist-get 'id_str (aio-await (org-twitter-tweet status)))))
+    (org-twitter-add-tweet-link-to-headline saved-buffer saved-point status status-id)))
+
+(defun org-twitter-add-tweet-link-to-headline (saved-buffer saved-point status status-id)
+  (with-current-buffer saved-buffer
+    (org-ml-update-headline-at* saved-point
+      (org-ml-set-property :title (org-ml-build-secondary-string!
+        (format "%s (%s)" status (org-twitter-link-to-tweet status-id))) it))))
+
+(defun org-twitter-link-to-tweet (status-id)
+  ;; TODO: include actual username in link rather than underscore
+  (format "[[https://twitter.com/_/status/%s][%s]]" status-id org-twitter-tweet-link-description))
 
 (aio-defun org-twitter-tweet-thread (tweets)
-  (let ((in-reply-to-status-id))
+  (let ((in-reply-to-status-id)
+        (status-ids '()))
     (while tweets
+      (message "tweeting \"%s\"" (car tweets))
       (let ((response (aio-await (org-twitter-tweet (car tweets) in-reply-to-status-id))))
         (if (stringp response) (error response)
-          (setq in-reply-to-status-id (alist-get 'id_str response))))
-      (setq tweets (cdr tweets)))))
+          (progn (setq in-reply-to-status-id (alist-get 'id_str response))
+                 (push in-reply-to-status-id status-ids))))
+      (setq tweets (cdr tweets)))
+    status-ids))
 
 (aio-defun org-twitter-tweet (tweet-text &optional in-reply-to-status-id)
-  (let ((promise (aio-promise)))
-    (twittering-call-api 'update-status
-                         (append `((status . ,tweet-text)
-                                   (sentinel . ,(org-twitter-create-tweet-sentinel promise)))
+  (aio-await
+   (org-twitter-call-api 'update-status
+                         (append `((status . ,tweet-text))
                                  (when in-reply-to-status-id
-                                   `((in-reply-to-status-id .  ,in-reply-to-status-id)))))
+                                   `((in-reply-to-status-id .  ,in-reply-to-status-id)))))))
+
+;; awaitable
+;; don't need aio-defun since I'm manually creating/returning the promise
+(defun org-twitter-call-api (command args-alist)
+  (let ((promise (aio-promise)))
+    ;; TODO: authentication check
+    (if (twittering-ensure-preparation-for-api-invocation)
+        (twittering-call-api command
+                             (append args-alist
+                                     `((sentinel . ,(org-twitter-create-sentinel promise)))))
+      (aio-resolve promise (lambda () (error "Authorization failed"))))
     promise))
 
-(defun org-twitter-create-tweet-sentinel (promise)
+(defun org-twitter-create-sentinel (promise)
   (lambda (proc status connection-info header-info)
     (let ((status-code (cdr (assq 'status-code header-info))))
       (case-string
        status-code
        (("200")
-        (let ((json-response (twittering-json-read)))
+        (let ((json-response (twittering-json-read))) ;; don't understand this, but ok
           (aio-resolve promise (lambda () json-response))))
        (t
-        (aio-resolve promise (lambda () (format "Response: %s"
+        (aio-resolve promise (lambda () (format "Got erroneous response: %s"
                                                 (twittering-get-error-message header-info connection-info)))))))))
 
 (provide 'org-twitter)
