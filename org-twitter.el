@@ -65,12 +65,22 @@
   ;; (format "[[https://twitter.com/_/status/%s][%s]]" status-id status)
   (format "%s ([[https://twitter.com/_/status/%s][%s]])" status status-id org-twitter-tweet-link-description))
 
+(aio-defun org-twitter-tweet-subheadlines-as-thread ()
+  (interactive)
+  (let* ((tweet-headlines (org-ml-headline-get-subheadlines (org-ml-parse-this-subtree)))
+         (tweets (mapcar (lambda (headline) (org-ml-get-property :raw-value headline))
+                           tweet-headlines))
+         (status-ids (aio-await (org-twitter-tweet-thread tweets))))
+    ;;TODO: linkify headlines
+    nil))
+
 (aio-defun org-twitter-tweet-thread (tweets)
   (let ((in-reply-to-status-id)
         (status-ids '()))
     (while tweets
-      (message "tweeting \"%s\"" (car tweets))
-      (let ((response (aio-await (org-twitter-tweet (car tweets) in-reply-to-status-id))))
+      (let* ((status (car tweets))
+             (response (aio-await (org-twitter-tweet status in-reply-to-status-id))))
+        (message "tweeting \"%s\"" status)
         (if (stringp response) (error response)
           (progn (setq in-reply-to-status-id (alist-get 'id_str response))
                  (push in-reply-to-status-id status-ids))))
