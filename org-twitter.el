@@ -45,7 +45,7 @@
 (defun org-twitter-add-tweet-link-to-selection (saved-buffer beg end status status-id)
   (with-current-buffer saved-buffer
     (delete-region beg end)
-    (insert (format "%s (%s)" status (org-twitter-link-to-tweet status-id)))))
+    (insert (org-twitter-linkify-tweet status status-id))))
 
 (aio-defun org-twitter-tweet-this-headline (saved-point)
   "Interactively tweet the headline under point."
@@ -59,11 +59,12 @@
   (with-current-buffer saved-buffer
     (org-ml-update-headline-at* saved-point
       (org-ml-set-property :title (org-ml-build-secondary-string!
-        (format "%s (%s)" status (org-twitter-link-to-tweet status-id))) it))))
+        (org-twitter-linkify-tweet status status-id)) it))))
 
-(defun org-twitter-link-to-tweet (status-id)
+(defun org-twitter-linkify-tweet (status status-id)
   ;; TODO: include actual username in link rather than underscore
-  (format "[[https://twitter.com/_/status/%s][%s]]" status-id org-twitter-tweet-link-description))
+  ;; (format "[[https://twitter.com/_/status/%s][%s]]" status-id status)
+  (format "%s ([[https://twitter.com/_/status/%s][%s]])" status status-id org-twitter-tweet-link-description))
 
 (aio-defun org-twitter-tweet-thread (tweets)
   (let ((in-reply-to-status-id)
