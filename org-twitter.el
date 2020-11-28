@@ -18,6 +18,7 @@
 ;;  Tweet from org-mode.
 ;;
 ;;; Code:
+(require 'cl-lib)
 (require 'twittering-mode)
 (require 'org-ml)
 (require 'aio)
@@ -56,6 +57,7 @@
 
 (defun org-twitter-add-tweet-link-to-headline (saved-buffer saved-point status status-id)
   (with-current-buffer saved-buffer
+    (message "updating headline in %s to %s" saved-buffer (org-twitter-linkify-tweet status status-id))
     (org-ml-update-headline-at* saved-point
       (org-ml-set-property :title (org-ml-build-secondary-string!
         (org-twitter-linkify-tweet status status-id)) it))))
@@ -63,16 +65,22 @@
 (defun org-twitter-linkify-tweet (status status-id)
   ;; TODO: include actual username in link rather than underscore
   ;; (format "[[https://twitter.com/_/status/%s][%s]]" status-id status)
-  (format "%s ([[https://twitter.com/_/status/%s][%s]])" status status-id org-twitter-tweet-link-description))
+  (format "%s ([[https://twitter.com/_/status/%s][%s]])"
+          status status-id org-twitter-tweet-link-description))
 
 (aio-defun org-twitter-tweet-subheadlines-as-thread ()
   (interactive)
-  (let* ((tweet-headlines (org-ml-headline-get-subheadlines (org-ml-parse-this-subtree)))
-         (tweets (mapcar (lambda (headline) (org-ml-get-property :raw-value headline))
-                           tweet-headlines))
+  (let* ((saved-buffer (current-buffer))
+         (headlines (org-ml-headline-get-subheadlines (org-ml-parse-this-subtree)))
+         (headline-locations
+          (mapcar (lambda (headline) (org-ml-get-property :begin headline)) headlines))
+         (tweets
+          (mapcar (lambda (headline) (org-ml-get-property :raw-value headline)) headlines))
          (status-ids (aio-await (org-twitter-tweet-thread tweets))))
-    ;;TODO: linkify headlines
-    nil))
+    (mapcar* (lambda (saved-point status status-id)
+               (org-twitter-add-tweet-link-to-headline saved-buffer saved-point status status-id))
+             ;; visit headlines in reverse so locations don't change
+             (nreverse headline-locations) (nreverse tweets) (nreverse status-ids))))
 
 (aio-defun org-twitter-tweet-thread (tweets)
   (let ((in-reply-to-status-id)
@@ -85,7 +93,7 @@
           (progn (setq in-reply-to-status-id (alist-get 'id_str response))
                  (push in-reply-to-status-id status-ids))))
       (setq tweets (cdr tweets)))
-    status-ids))
+    (nreverse status-ids)))
 
 (aio-defun org-twitter-tweet (tweet-text &optional in-reply-to-status-id)
   (aio-await
