@@ -39,7 +39,6 @@
   (let* ((saved-buffer (current-buffer))
          (status (buffer-substring-no-properties beg end))
          (status-id (alist-get 'id_str (aio-wait-for (org-twitter-tweet status)))))
-    (message "status: %s" status)
     (org-twitter-add-tweet-link-to-selection saved-buffer beg end status status-id)))
 
 (defun org-twitter-add-tweet-link-to-selection (saved-buffer beg end status status-id)
