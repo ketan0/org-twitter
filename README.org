@@ -26,16 +26,18 @@ With the cursor on an org-mode parent headline, interactively call =org-twitter-
 With some text selected, call =org-twitter-tweet-selection=:
 [TODO]
 
+Of course, you can always bind these commands to keys if you want.
+
 To write tweets with org-capture, add something like this to your init file:
 #+begin_src emacs-lisp
-(add-to-list 'org-capture-templates
-             `(("S" "tweet" entry
-                ;; change this file as desired
-                (file ,(concat org-directory "twitter.org"))
-                "* %?")))
-(defun my-org-twitter-finalize ()
-  (let ((key  (plist-get org-capture-plist :key)))
-    (when (and (string= key "S") (not org-note-abort))
-      (aio-wait-for (call-interactively 'org-twitter-tweet-this-headline)))))
-(add-hook 'org-capture-prepare-finalize-hook 'my-org-twitter-finalize)
+(with-eval-after-load 'org-capture
+    (add-to-list 'org-capture-templates
+                 `("S" "tweet" entry ;; for use with org-twitter
+                   (file ,(concat org-directory "20200406054034-twitter.org"))
+                   "* %?"))
+    (defun ketan0/org-twitter-finalize ()
+      (let ((key  (plist-get org-capture-plist :key)))
+        (when (and (string= key "S") (not org-note-abort))
+          (aio-wait-for (call-interactively 'org-twitter-tweet-this-headline)))))
+    (add-hook 'org-capture-prepare-finalize-hook 'ketan0/org-twitter-finalize))
 #+end_src
