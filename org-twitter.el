@@ -9,7 +9,7 @@
 ;; Version: 0.0.1
 ;; Keywords:
 ;; Homepage: https://github.com/ketan0/org-twitter
-;; Package-Requires: ((emacs 26.1) (org-ml "4.0") (cl-lib "0.5") (aio "1.0"))
+;; Package-Requires: ((emacs 26.1) (org-ml "4.0") (cl-lib "0.5") (aio "1.0") (twittering-mode "3.1"))
 ;;
 ;; This file is not part of GNU Emacs.
 ;;
