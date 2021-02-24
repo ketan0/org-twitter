@@ -1,5 +1,7 @@
 #+TITLE: org-twitter 🦄🔁🐦
 
+[[images/tweetthread.gif]]
+
 * Introduction
 The goal of this package is to reduce the gap between your notes and Twitter; to reduce the friction between spontaneous musings and public tweets. To this end, org-twitter provides a number of functions that transform org-mode notes into tweets, threads, and (soon) even hierarchies of threads on Twitter.
 * Dependencies
